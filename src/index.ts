@@ -346,4 +346,22 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     return router.handle(request, env, ctx)
   },
+
+  // Scheduled function to pre-cache prices
+  async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
+    const symbols = ['BTC', 'ETH', 'BNB', 'SOL']
+    const interval: Interval = '30d'
+
+    // Fetch and cache prices for each symbol
+    await Promise.all(
+      symbols.map(async (symbol) => {
+        try {
+          const priceData = await fetchPriceFromAlchemy(symbol, interval, env)
+          await setCachedPrice(symbol, interval, priceData, env)
+        } catch (error) {
+          console.error(`Failed to cache ${symbol} ${interval} price:`, error)
+        }
+      })
+    )
+  }
 } 

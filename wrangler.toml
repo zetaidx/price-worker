@@ -8,3 +8,6 @@ id = "cbf56dfece2d46798510ccdf89019cfb"
 
 [build]
 command = "npm run build" 
+
+[triggers]
+crons = [ "*/3 * * * *"]
