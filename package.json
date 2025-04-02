@@ -1,0 +1,21 @@
+{
+  "name": "price-worker",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker for caching and aggregating Alchemy crypto prices",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "build": "tsc",
+    "start": "npm run build && npm run dev"
+  },
+  "dependencies": {
+    "itty-router": "^2.6.6"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240208.0",
+    "@types/node": "^20.11.19",
+    "typescript": "^5.3.3",
+    "wrangler": "^3.0.0"
+  }
+} 
