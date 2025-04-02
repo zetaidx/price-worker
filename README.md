@@ -41,7 +41,7 @@ Parameters:
 - `interval`: Time interval (24h, 7d, 30d) - defaults to 24h
 
 Response:
-```json
+```jsonc
 {
   "symbol": "ETH",
   "interval": "24h",
@@ -68,7 +68,7 @@ Parameters:
 - `interval`: Time interval (24h, 7d, 30d) - defaults to 24h
 
 Response:
-```json
+```jsonc
 {
   "data": [
     {
@@ -93,7 +93,7 @@ Parameters:
 - `ratios`: Comma-separated list of weights (must sum to 1)
 
 Response:
-```json
+```jsonc
 {
   "pnl": 5.2,
   "firstValue": 3500.50,
@@ -115,7 +115,7 @@ Parameters:
 - `interval`: Time interval (24h, 7d, 30d) - defaults to 24h
 
 Response:
-```json
+```jsonc
 {
   "values": {
     "eth": 3500.50,
