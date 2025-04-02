@@ -114,6 +114,38 @@ async function fetchPriceFromAlchemy(symbol: string, interval: Interval, env: En
   return data
 }
 
+// Helper function to fetch and calculate weighted prices
+async function getWeightedPrices(symbolList: string[], ratioList: number[], interval: Interval, env: Env) {
+  // Fetch price data for all symbols, using cache when available
+  const priceDataList = await Promise.all(
+    symbolList.map(async (symbol) => {
+      let priceData = await getCachedPrice(symbol, interval, env)
+      if (!priceData) {
+        priceData = await fetchPriceFromAlchemy(symbol, interval, env)
+        await setCachedPrice(symbol, interval, priceData, env)
+      }
+      return priceData
+    })
+  )
+
+  // Calculate weighted average for each timestamp
+  const timestamps = priceDataList[0].data.map(point => point.timestamp)
+  const weightedData = timestamps.map((timestamp, index) => {
+    const totalRatio = ratioList.reduce((sum, ratio) => sum + ratio, 0)
+    const weightedValue = priceDataList.reduce((sum, priceData, symbolIndex) => {
+      const point = priceData.data[index]
+      return sum + (parseFloat(point.value) * ratioList[symbolIndex]) / totalRatio
+    }, 0)
+
+    return {
+      value: weightedValue,
+      timestamp
+    }
+  })
+
+  return weightedData
+}
+
 // Route to get price for a single symbol
 router.get('/price/:symbol', async (request: Request, env: Env) => {
   const params = request.params as { symbol: string }
@@ -190,32 +222,7 @@ router.get('/aggregate', async (request: Request, env: Env) => {
   }
 
   try {
-    // Fetch price data for all symbols, using cache when available
-    const priceDataList = await Promise.all(
-      symbolList.map(async (symbol) => {
-        let priceData = await getCachedPrice(symbol, interval, env)
-        if (!priceData) {
-          priceData = await fetchPriceFromAlchemy(symbol, interval, env)
-          await setCachedPrice(symbol, interval, priceData, env)
-        }
-        return priceData
-      })
-    )
-
-    // Calculate weighted average for each timestamp
-    const timestamps = priceDataList[0].data.map(point => point.timestamp)
-    const weightedData = timestamps.map((timestamp, index) => {
-      const totalRatio = ratioList.reduce((sum, ratio) => sum + ratio, 0)
-      const weightedValue = priceDataList.reduce((sum, priceData, symbolIndex) => {
-        const point = priceData.data[index]
-        return sum + (parseFloat(point.value) * ratioList[symbolIndex]) / totalRatio
-      }, 0)
-
-      return {
-        value: weightedValue,
-        timestamp
-      }
-    })
+    const weightedData = await getWeightedPrices(symbolList, ratioList, interval, env)
 
     return new Response(JSON.stringify({ 
       data: weightedData,
@@ -226,6 +233,51 @@ router.get('/aggregate', async (request: Request, env: Env) => {
     })
   } catch (error) {
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), { status: 500 })
+  }
+})
+
+// Route to get percentage gain/loss for aggregated prices
+router.get('/aggregate/pnl', async (request: Request, env: Env) => {
+  const query = request.query as { symbols?: string; ratios?: string }
+  const { symbols, ratios } = query
+
+  if (!symbols || !ratios) {
+    return new Response('Missing required parameters: symbols and ratios', { status: 400 })
+  }
+
+  const symbolList = symbols.split(',')
+  const ratioList = ratios.split(',').map(Number)
+
+  if (symbolList.length !== ratioList.length) {
+    return new Response('Number of symbols must match number of ratios', { status: 400 })
+  }
+
+  try {
+    const weightedData = await getWeightedPrices(symbolList, ratioList, '30d', env)
+
+    // Calculate percentage gain/loss
+    const firstValue = weightedData[0].value
+    const lastValue = weightedData[weightedData.length - 1].value
+    const pnl = ((lastValue - firstValue) / firstValue) * 100
+
+    return new Response(JSON.stringify({ 
+      pnl,
+      firstValue,
+      lastValue,
+      firstTimestamp: weightedData[0].timestamp,
+      lastTimestamp: weightedData[weightedData.length - 1].timestamp,
+      timestamp: new Date().toISOString()
+    }), {
+      headers: { 'Content-Type': 'application/json' },
+    })
+  } catch (error) {
+    return new Response(JSON.stringify({ 
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    }), { 
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    })
   }
 })
 
