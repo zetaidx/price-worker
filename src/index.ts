@@ -160,6 +160,14 @@ function addCorsHeaders(response: Response): Response {
 }
 
 // Route to get price for a single symbol
+router.get('/', async () => {
+  return new Response(JSON.stringify({
+    message: "See https://github.com/zetaidx/price-worker for docs"
+  }), {
+    headers: { 'Content-Type': 'application/json' }
+  })
+})
+
 router.get('/price/:symbol', async (request: Request, env: Env) => {
   const params = request.params as { symbol: string }
   const { symbol } = params
