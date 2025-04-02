@@ -146,6 +146,19 @@ async function getWeightedPrices(symbolList: string[], ratioList: number[], inte
   return weightedData
 }
 
+// Helper function to add CORS headers
+function addCorsHeaders(response: Response): Response {
+  const headers = new Headers(response.headers)
+  headers.set('Access-Control-Allow-Origin', '*')
+  headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS')
+  headers.set('Access-Control-Allow-Headers', 'Content-Type')
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers
+  })
+}
+
 // Route to get price for a single symbol
 router.get('/price/:symbol', async (request: Request, env: Env) => {
   const params = request.params as { symbol: string }
@@ -344,7 +357,15 @@ router.get('/batch', async (request: Request, env: Env) => {
 // Handle all requests
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    return router.handle(request, env, ctx)
+    // Handle OPTIONS request for CORS preflight
+    if (request.method === 'OPTIONS') {
+      return addCorsHeaders(new Response(null, {
+        headers: { 'Content-Type': 'application/json' }
+      }))
+    }
+
+    const response = await router.handle(request, env, ctx)
+    return addCorsHeaders(response)
   },
 
   // Scheduled function to pre-cache prices
