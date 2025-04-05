@@ -64,7 +64,9 @@ GET /aggregate?symbols=ETH,BTC&ratios=0.6,0.4&interval=24h
 
 Parameters:
 - `symbols`: Comma-separated list of token symbols
-- `ratios`: Comma-separated list of weights (must sum to 1)
+- `ratios`: Comma-separated list of weights. Can be provided in two formats:
+  - Fractions that sum to 1 (e.g., 0.6,0.4)
+  - Integers representing percentages (e.g., 60,40)
 - `interval`: Time interval (24h, 7d, 30d) - defaults to 24h
 
 Response:
@@ -90,7 +92,9 @@ GET /aggregate/pnl?symbols=ETH,BTC&ratios=0.6,0.4
 
 Parameters:
 - `symbols`: Comma-separated list of token symbols
-- `ratios`: Comma-separated list of weights (must sum to 1)
+- `ratios`: Comma-separated list of weights. Can be provided in two formats:
+  - Fractions that sum to 1 (e.g., 0.6,0.4)
+  - Integers representing percentages (e.g., 60,40)
 
 Response:
 ```jsonc
@@ -135,12 +139,12 @@ GET /price/ETH?interval=7d
 
 Get weighted average of ETH and BTC (60% ETH, 40% BTC) for the last 30 days:
 ```
-GET /aggregate?symbols=ETH,BTC&ratios=0.6,0.4&interval=30d
+GET /aggregate?symbols=ETH,BTC&ratios=60,40&interval=30d
 ```
 
 Get percentage gain/loss for a portfolio of ETH, BTC, and SOL:
 ```
-GET /aggregate/pnl?symbols=ETH,BTC,SOL&ratios=0.5,0.3,0.2
+GET /aggregate/pnl?symbols=ETH,BTC,SOL&ratios=50,30,20
 ```
 
 Get latest prices for multiple tokens:

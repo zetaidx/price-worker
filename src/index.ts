@@ -114,6 +114,22 @@ async function fetchPriceFromAlchemy(symbol: string, interval: Interval, env: En
   return data
 }
 
+// Helper function to process ratios
+function processRatios(ratios: string[]): number[] {
+  const numbers = ratios.map(Number)
+  // Check if all numbers are integers
+  const allIntegers = numbers.every(num => Number.isInteger(num))
+  
+  if (allIntegers) {
+    // If all numbers are integers, treat them as percentages
+    const total = numbers.reduce((sum, num) => sum + num, 0)
+    return numbers.map(num => num / total)
+  }
+  
+  // Otherwise, return the numbers as is (assuming they're already fractions)
+  return numbers
+}
+
 // Helper function to fetch and calculate weighted prices
 async function getWeightedPrices(symbolList: string[], ratioList: number[], interval: Interval, env: Env) {
   // Fetch price data for all symbols, using cache when available
@@ -230,7 +246,7 @@ router.get('/aggregate', async (request: Request, env: Env) => {
   }
 
   const symbolList = symbols.split(',')
-  const ratioList = ratios.split(',').map(Number)
+  const ratioList = processRatios(ratios.split(','))
 
   if (symbolList.length !== ratioList.length) {
     return new Response('Number of symbols must match number of ratios', { status: 400 })
@@ -267,7 +283,7 @@ router.get('/aggregate/pnl', async (request: Request, env: Env) => {
   }
 
   const symbolList = symbols.split(',')
-  const ratioList = ratios.split(',').map(Number)
+  const ratioList = processRatios(ratios.split(','))
 
   if (symbolList.length !== ratioList.length) {
     return new Response('Number of symbols must match number of ratios', { status: 400 })
