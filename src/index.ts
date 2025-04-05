@@ -144,22 +144,85 @@ async function getWeightedPrices(symbolList: string[], ratioList: number[], inte
     })
   )
 
-  // Calculate weighted average for each timestamp
-  const timestamps = priceDataList[0].data.map(point => point.timestamp)
-  const weightedData = timestamps.map((timestamp, index) => {
+  // Find the common time range across all price data
+  const allTimestamps = priceDataList.map(data => 
+    data.data.map(point => new Date(point.timestamp).getTime())
+  )
+  
+  const minTimestamp = Math.max(...allTimestamps.map(timestamps => Math.min(...timestamps)))
+  const maxTimestamp = Math.min(...allTimestamps.map(timestamps => Math.max(...timestamps)))
+  
+  // Create a map of timestamps to values for each symbol for efficient lookup
+  const priceMaps = priceDataList.map(data => {
+    const map = new Map<number, number>()
+    data.data.forEach(point => {
+      map.set(new Date(point.timestamp).getTime(), parseFloat(point.value))
+    })
+    return map
+  })
+  
+  // Generate a list of timestamps at regular intervals within the common range
+  const timeStep = getTimeStep(interval)
+  const timestamps: number[] = []
+  for (let t = minTimestamp; t <= maxTimestamp; t += timeStep) {
+    timestamps.push(t)
+  }
+  
+  // Calculate weighted average for each timestamp with interpolation
+  const weightedData = timestamps.map(timestamp => {
     const totalRatio = ratioList.reduce((sum, ratio) => sum + ratio, 0)
-    const weightedValue = priceDataList.reduce((sum, priceData, symbolIndex) => {
-      const point = priceData.data[index]
-      return sum + (parseFloat(point.value) * ratioList[symbolIndex]) / totalRatio
+    const weightedValue = priceMaps.reduce((sum, priceMap, symbolIndex) => {
+      // Find the closest available price points for interpolation
+      const availablePrices = Array.from(priceMap.entries())
+        .filter(([t]) => t >= minTimestamp && t <= maxTimestamp)
+        .sort((a, b) => a[0] - b[0])
+      
+      if (availablePrices.length === 0) {
+        throw new Error(`No price data available for symbol ${symbolList[symbolIndex]}`)
+      }
+      
+      // Find the closest price points for interpolation
+      let lowerPoint = availablePrices[0]
+      let upperPoint = availablePrices[availablePrices.length - 1]
+      
+      for (let i = 0; i < availablePrices.length - 1; i++) {
+        if (availablePrices[i][0] <= timestamp && availablePrices[i + 1][0] >= timestamp) {
+          lowerPoint = availablePrices[i]
+          upperPoint = availablePrices[i + 1]
+          break
+        }
+      }
+      
+      // Linear interpolation
+      const timeDiff = upperPoint[0] - lowerPoint[0]
+      const valueDiff = upperPoint[1] - lowerPoint[1]
+      const ratio = timeDiff === 0 ? 0 : (timestamp - lowerPoint[0]) / timeDiff
+      const interpolatedValue = lowerPoint[1] + valueDiff * ratio
+      
+      return sum + (interpolatedValue * ratioList[symbolIndex]) / totalRatio
     }, 0)
 
     return {
       value: weightedValue,
-      timestamp
+      timestamp: new Date(timestamp).toISOString()
     }
   })
 
   return weightedData
+}
+
+// Helper function to determine the appropriate time step based on interval
+function getTimeStep(interval: Interval): number {
+  switch (interval) {
+    case '24h':
+      return 5 * 60 * 1000 // 5 minutes
+    case '7d':
+      return 60 * 60 * 1000 // 1 hour
+    case '30d':
+      return 24 * 60 * 60 * 1000 // 1 day
+    default:
+      return 5 * 60 * 1000 // Default to 5 minutes
+  }
 }
 
 // Helper function to add CORS headers
